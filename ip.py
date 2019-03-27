@@ -17,6 +17,18 @@ def ip_to_int(ip):
 def is_ip4(pkt):
     return pkt[0] & 0xF0 == 0x40
 
+def calculate_checksum(pkt: bytearray):
+    header = pkt[:20]
+    header[10:12] = b'\0\0' # checksum is 0 for the purposes of this
+
+    pairs = zip(header[::2], header[1::2])
+    pairs = map(lambda x: bytes(x), pairs)
+    pairs = map(lambda x: int.from_bytes(x, 'big'), pairs)
+    pairs = list(pairs)
+
+    return ((~sum(pairs) & 0xFFFF) - 1).to_bytes(2, "big")
+
+
 protocols = {
     1: "ICMP",
     6: "TCP",
@@ -64,7 +76,17 @@ class IP4Range:
 
 class IP4Packet:
     def __init__(self, bytes):
-        self.bytes = bytes
+        self.bytes = bytearray(bytes)
+
+    def new():
+        # some sensible defaults.
+        # intends you to set src, dst, and body after-thr-fact
+        pkt = IP4Packet(b'\0' * 64)
+        pkt.version = 4
+        pkt.ihl = 5
+        pkt.length = 64
+        pkt.ttl = 64
+        return pkt
 
     @property
     def version(self) -> int:
@@ -81,6 +103,8 @@ class IP4Packet:
 
     @ihl.setter
     def set_ihl(self, ihl):
+        if ihl != 5:
+            raise ValueError("I definitely don't support IP header tags")
         self.bytes[0] &= 0xF0
         self.bytes[0] |= ihl
 
@@ -128,10 +152,11 @@ class IP4Packet:
     def checksum(self) -> bytes:
         return self.bytes[10:12]
 
-    @checksum.setter
     def set_checksum(self):
-        # TODO: calculate checksum
-        pass
+        self.bytes[10:12] = calculate_checksum(self.bytes)
+
+    def validate_checksum(self):
+        return calculate_checksum(self.bytes) == self.checksum
 
     @property
     def src(self) -> IP4Addr:
@@ -148,6 +173,15 @@ class IP4Packet:
     @dst.setter
     def set_dst(self, ip):
         self.bytes[16:20] = bytes(ip)
+
+    @property
+    def body(self):
+        return self.bytes[20:]
+
+    @body.setter
+    def set_body(self, body):
+        self.bytes[20:] = body
+        self.length = len(body) + 20
 
     def format_bytes(self):
         s = ''.join(('{:02X}'.format(i) for i in self.bytes))

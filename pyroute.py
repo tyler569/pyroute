@@ -35,6 +35,10 @@ while True:
     print(ip4)
     print(ip4.format_bytes())
 
+    if not ip4.validate_checksum():
+        print("bad checksum, dropping")
+        continue
+
     rs = routes[:]
     # pick routes that include the source
     rs = filter(lambda r: r[0].contains(ip4.src), rs)
