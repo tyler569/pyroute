@@ -84,6 +84,10 @@ def local_packet(pkt):
             # only respond to echo requests
             return
 
+        if not icmp.validate_checksum():
+            print("bad checksum icmp")
+            return
+
         resp_icmp = ICMPPacket(pkt.body)
         resp_icmp.type = 0 # echo reply
         resp_icmp.set_checksum()

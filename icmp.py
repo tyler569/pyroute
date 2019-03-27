@@ -1,5 +1,6 @@
 
 def calculate_checksum(pkt):
+    pkt = pkt[:]
     pkt[2:4] = b'\0\0' # checksum is 0 for the purpose of this
 
     # this is basically copypasta from ipv4 checksum
@@ -9,7 +10,12 @@ def calculate_checksum(pkt):
     pairs = map(lambda x: int.from_bytes(x, 'big'), pairs)
     pairs = list(pairs)
 
-    return ((~sum(pairs) & 0xFFFF) - 1).to_bytes(2, 'big')
+    s = sum(pairs)
+    v = s & 0xFFFF
+    rest = s >> 16
+    v += rest
+
+    return (~v & 0xFFFF).to_bytes(2, 'big')
 
 
 class ICMPPacket:
@@ -40,7 +46,7 @@ class ICMPPacket:
         self.bytes[2:4] = calculate_checksum(self.bytes)
 
     def validate_checksum(self):
-        return calculate_checksum(self) == self.checksum
+        return calculate_checksum(self.bytes) == self.checksum
 
     @property
     def ident(self) -> int:

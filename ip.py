@@ -19,6 +19,7 @@ def is_ip4(pkt):
 
 def calculate_checksum(pkt: bytearray):
     header = pkt[:20]
+    header = header[:]
     header[10:12] = b'\0\0' # checksum is 0 for the purposes of this
 
     pairs = zip(header[::2], header[1::2])
@@ -26,7 +27,12 @@ def calculate_checksum(pkt: bytearray):
     pairs = map(lambda x: int.from_bytes(x, 'big'), pairs)
     pairs = list(pairs)
 
-    return ((~sum(pairs) & 0xFFFF) - 1).to_bytes(2, "big")
+    s = sum(pairs)
+    v = s & 0xFFFF
+    rest = s >> 16
+    v += rest
+
+    return (~v & 0xFFFF).to_bytes(2, 'big')
 
 
 protocols = {
