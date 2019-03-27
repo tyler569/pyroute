@@ -93,16 +93,16 @@ class IP4Packet:
         return self.bytes[0] >> 4
 
     @version.setter
-    def set_version(self, version):
+    def version(self, version):
         self.bytes[0] &= 0x0F
-        self.bytes[0] |= version << 4
+        self.bytes[0] |= (version << 4)
 
     @property
     def ihl(self) -> int:
         return self.bytes[0] & 0x0F
 
     @ihl.setter
-    def set_ihl(self, ihl):
+    def ihl(self, ihl):
         if ihl != 5:
             raise ValueError("I definitely don't support IP header tags")
         self.bytes[0] &= 0xF0
@@ -112,25 +112,55 @@ class IP4Packet:
     def dscp(self) -> int:
         return self.bytes[1] >> 2
 
+    @dscp.setter
+    def dscp(self, value):
+        self.bytes[1] &= 0x03
+        self.bytes[1] |= (value << 2)
+
     @property
     def ecn(self) -> int:
         return self.bytes[1] & 0x03
+
+    @ecn.setter
+    def ecn(self, value):
+        self.bytes[1] &= 0xFC
+        self.bytes[1] |= value
 
     @property
     def length(self) -> int:
         return int.from_bytes(self.bytes[2:4], "big")
 
+    @length.setter
+    def length(self, value):
+        self.bytes[2:4] = value.to_bytes(2, 'big')
+
     @property
     def ident(self) -> int:
         return int.from_bytes(self.bytes[4:6], "big")
+
+    @ident.setter
+    def ident(self, value):
+        self.bytes[4:6] = value.to_bytes(2, 'big')
 
     @property
     def dnf(self) -> bool:
         return self.bytes[6] & 0x80 > 0
 
+    @dnf.setter
+    def dnf(self, value):
+        self.bytes[6] &= 0x7F
+        if value:
+            self.bytes[6] |= 0x80
+
     @property
     def mf(self) -> bool:
         return self.bytes[6] & 0x40 > 0
+
+    @mf.setter
+    def mf(self, value):
+        self.bytes[6] &= 0xBF
+        if value:
+            self.bytes[6] |= 0x40
 
     @property
     def frag_offset(self) -> int:
@@ -141,12 +171,16 @@ class IP4Packet:
         return self.bytes[8]
 
     @ttl.setter
-    def set_ttl(self, value):
+    def ttl(self, value):
         self.bytes[8] = value
 
     @property
     def proto(self) -> int:
         return self.bytes[9]
+
+    @proto.setter
+    def proto(self, value):
+        self.bytes[9] = value
 
     @property
     def checksum(self) -> bytes:
@@ -163,7 +197,7 @@ class IP4Packet:
         return IP4Addr(tuple(self.bytes[12:16]))
 
     @src.setter
-    def set_src(self, ip):
+    def src(self, ip):
         self.bytes[12:16] = bytes(ip)
 
     @property
@@ -171,7 +205,7 @@ class IP4Packet:
         return IP4Addr(tuple(self.bytes[16:20]))
 
     @dst.setter
-    def set_dst(self, ip):
+    def dst(self, ip):
         self.bytes[16:20] = bytes(ip)
 
     @property
@@ -179,7 +213,7 @@ class IP4Packet:
         return self.bytes[20:]
 
     @body.setter
-    def set_body(self, body):
+    def body(self, body):
         self.bytes[20:] = body
         self.length = len(body) + 20
 
