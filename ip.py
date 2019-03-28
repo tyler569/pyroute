@@ -1,4 +1,6 @@
 
+from util import *
+
 def parse_ip4(st):
     tup = tuple(map(int, st.split('.')))
     if len(tup) != 4:
@@ -22,17 +24,7 @@ def calculate_checksum(pkt: bytearray):
     header = header[:]
     header[10:12] = b'\0\0' # checksum is 0 for the purposes of this
 
-    pairs = zip(header[::2], header[1::2])
-    pairs = map(lambda x: bytes(x), pairs)
-    pairs = map(lambda x: int.from_bytes(x, 'big'), pairs)
-    pairs = list(pairs)
-
-    s = sum(pairs)
-    v = s & 0xFFFF
-    rest = s >> 16
-    v += rest
-
-    return (~v & 0xFFFF).to_bytes(2, 'big')
+    return ones_comp_16b_sum(header)
 
 
 protocols = {
@@ -132,21 +124,8 @@ class IP4Packet:
         self.bytes[1] &= 0xFC
         self.bytes[1] |= value
 
-    @property
-    def length(self) -> int:
-        return int.from_bytes(self.bytes[2:4], "big")
-
-    @length.setter
-    def length(self, value):
-        self.bytes[2:4] = value.to_bytes(2, 'big')
-
-    @property
-    def ident(self) -> int:
-        return int.from_bytes(self.bytes[4:6], "big")
-
-    @ident.setter
-    def ident(self, value):
-        self.bytes[4:6] = value.to_bytes(2, 'big')
+    length = two_byte_accessor_property(2)
+    ident = two_byte_accessor_property(4)
 
     @property
     def dnf(self) -> bool:
@@ -172,21 +151,8 @@ class IP4Packet:
     def frag_offset(self) -> int:
         return int.from_bytes(self.bytes[6:8], "big") & 0x1FFF
 
-    @property
-    def ttl(self) -> int:
-        return self.bytes[8]
-
-    @ttl.setter
-    def ttl(self, value):
-        self.bytes[8] = value
-
-    @property
-    def proto(self) -> int:
-        return self.bytes[9]
-
-    @proto.setter
-    def proto(self, value):
-        self.bytes[9] = value
+    ttl = one_byte_accessor_property(8)
+    proto = one_byte_accessor_property(9)
 
     @property
     def checksum(self) -> bytes:
@@ -214,14 +180,7 @@ class IP4Packet:
     def dst(self, ip):
         self.bytes[16:20] = bytes(ip)
 
-    @property
-    def body(self):
-        return self.bytes[20:]
-
-    @body.setter
-    def body(self, body):
-        self.bytes[20:] = body
-        self.length = len(body) + 20
+    body = body_accessor_property(20, delta=20)
 
     def format_bytes(self):
         s = ''.join(('{:02X}'.format(i) for i in self.bytes))

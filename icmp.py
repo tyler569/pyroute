@@ -1,42 +1,19 @@
 
+from util import *
+
 def calculate_checksum(pkt):
     pkt = pkt[:]
     pkt[2:4] = b'\0\0' # checksum is 0 for the purpose of this
 
-    # this is basically copypasta from ipv4 checksum
-    # factor out?
-    pairs = zip(pkt[::2], pkt[1::2])
-    pairs = map(lambda x: bytes(x), pairs)
-    pairs = map(lambda x: int.from_bytes(x, 'big'), pairs)
-    pairs = list(pairs)
-
-    s = sum(pairs)
-    v = s & 0xFFFF
-    rest = s >> 16
-    v += rest
-
-    return (~v & 0xFFFF).to_bytes(2, 'big')
+    return ones_comp_16b_sum(pkt)
 
 
 class ICMPPacket:
     def __init__(self, bytes):
         self.bytes = bytes
 
-    @property
-    def type(self) -> int:
-        return self.bytes[0]
-
-    @type.setter
-    def type(self, value):
-        self.bytes[0] = value
-
-    @property
-    def code(self) -> int:
-        return self.bytes[1]
-
-    @code.setter
-    def code(self, value):
-        self.bytes[1] = value
+    type = one_byte_accessor_property(0)
+    code = one_byte_accessor_property(1)
 
     @property
     def checksum(self) -> bytes:
@@ -48,23 +25,7 @@ class ICMPPacket:
     def validate_checksum(self):
         return calculate_checksum(self.bytes) == self.checksum
 
-    @property
-    def ident(self) -> int:
-        return int.from_bytes(self.bytes[4:6], 'big')
-
-    @ident.setter
-    def ident(self, value):
-        self.bytes[4:6] = value.to_bytes(2, 'big')
-
-    @property
-    def seq(self) -> int:
-        return int.from_bytes(self.bytes[6:8])
-
-    @seq.setter
-    def seq(self, value):
-        self.bytes[6:8] = value.bytes(2, 'big')
-
-    @property
-    def body(self) -> bytes:
-        return self.bytes[8:]
+    ident = two_byte_accessor_property(4)
+    seq = two_byte_accessor_property(6)
+    body = body_accessor_property(8)
 

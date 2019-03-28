@@ -4,6 +4,7 @@ import select
 
 from ip import *
 from icmp import ICMPPacket
+from udp import UDPPacket
 import intf
 
 outer = intf.TunInterface("tun0")
@@ -36,6 +37,12 @@ def route_packet(pkt: bytes):
     if not ip4.validate_checksum():
         print("bad checksum, dropping")
         return
+
+    if ip4.proto == 17: # UDP
+        udp = UDPPacket(ip4.body)
+        if not udp.validate_checksum(ip4.src, ip4.dst):
+            print("bad udp checksum")
+            return
 
     rs = routes[:]
     # pick routes that include the source
@@ -101,6 +108,28 @@ def local_packet(pkt):
 
         resp.set_checksum()
         route_packet(resp.bytes)
+    elif pkt.proto == 17: # UDP
+        udp = UDPPacket(pkt.body)
+        print("UDP:", udp.src, '->', udp.dst)
+        print("", str(udp.body))
+
+        if udp.dst == 1500:
+            resp_udp = UDPPacket()
+            resp_udp.dst = udp.src
+            resp_udp.src = udp.dst
+            resp_udp.body = udp.body
+            resp_udp.set_checksum(pkt.dst, pkt.src)
+
+            resp = IP4Packet.new()
+            resp.dst = pkt.src
+            resp.src = pkt.dst
+            resp.proto = 17 # UDP
+            resp.ident = pkt.ident
+            resp.body = resp_udp.bytes
+
+            resp.set_checksum()
+            route_packet(resp.bytes)
+
     else:
         print('local packet unhandled')
 
