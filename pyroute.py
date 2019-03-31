@@ -10,6 +10,8 @@ import intf
 outer = intf.TunInterface("tun0")
 inner = intf.TunInterface("tun0", "blue")
 
+debug = False
+
 def wait_for(*interfaces):
     ready = select.select(interfaces, [], [])
     return ready[0]
@@ -31,8 +33,9 @@ def route_packet(pkt: bytes):
         return
 
     ip4 = IP4Packet(pkt)
-    print(ip4)
-    print(ip4.format_bytes())
+    if debug:
+        print(ip4)
+        print(ip4.format_bytes())
 
     if not ip4.validate_checksum():
         print("bad checksum, dropping")
@@ -43,6 +46,11 @@ def route_packet(pkt: bytes):
         if not udp.validate_checksum(ip4.src, ip4.dst):
             print("bad udp checksum")
             return
+
+    ip4.ttl -= 1
+    if ip4.ttl <= 0:
+        print("ttl expired, could send an ICMP ttl expired")
+        return
 
     rs = routes[:]
     # pick routes that include the source
@@ -64,11 +72,13 @@ def route_packet(pkt: bytes):
         print("explicit drop")
 
     elif rule == forward:
-        print("sent to", route[2][1].name)
+        if debug:
+            print("sent to", route[2][1].name)
         os.write(route[2][1].fd, pkt)
 
     elif rule == local:
-        print("local packet")
+        if debug:
+            print("local packet")
         local_packet(ip4)
 
     else:
@@ -102,6 +112,7 @@ def local_packet(pkt):
         resp = IP4Packet.new()
         resp.dst = pkt.src
         resp.src = pkt.dst
+        resp.ttl = pkt.ttl
         resp.proto = 1 # ICMP
         resp.ident = pkt.ident
         resp.body = resp_icmp.bytes
@@ -139,6 +150,7 @@ if __name__ == '__main__':
         ready_intf = wait_for(outer, inner)
         intf = ready_intf[0]
         pkt = os.read(intf.fd, 2048)
-        print("from:", intf.name, end=' : ')
+        if debug:
+            print("from:", intf.name, end=' : ')
         route_packet(pkt)
 

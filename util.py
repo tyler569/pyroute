@@ -30,6 +30,26 @@ def two_byte_accessor_property(offset) -> property:
 
     return property(_get, _set)
 
+def four_byte_accessor_property(offset) -> property:
+    def _get(self) -> int:
+        return int.from_bytes(self.bytes[offset:offset+4], 'big')
+
+    def _set(self, value):
+        self.bytes[offset:offset+4] = value.to_bytes(4, 'big')
+
+    return property(_get, _set)
+
+def bit_accessor_property(offset, bit) -> property:
+    def _get(self) -> bool:
+        return self.bytes[offset] & (1 << bit) > 0
+
+    def _set(self, value):
+        self.bytes[offset] &= (~(1 << bit)) & 0xFF
+        if value:
+            self.bytes[offset] |= (1 << bit)
+
+    return property(_get, _set)
+
 def body_accessor_property(offset, delta=None) -> property:
     def _get(self) -> bytes:
         return self.bytes[offset:]
