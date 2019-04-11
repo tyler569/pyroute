@@ -48,16 +48,16 @@ class IP4Addr:
     def __str__(self) -> str:
         return '.'.join(map(str, self.value))
 
+    def __eq__(self, othr) -> bool:
+        return self.value == othr.value
+
 
 class IP4Range:
-    def __init__(self, ip, mask_bits):
-        if type(ip) is str:
-            self.ip = parse_ip4(ip)
-        elif type(ip) is tuple:
-            self.ip = ip 
-        else:
-            raise TypeError("bad IP address type")
+    def __init__(self, ip_range):
+        ip, mask_bits = ip_range.split('/')
+        mask_bits = int(mask_bits)
 
+        self.ip = parse_ip4(ip)
         self.ip_int = ip_to_int(self.ip)
         self.mask_bits = mask_bits
         self.mask = sum(1<<i for i in range(31, (31-mask_bits), -1))
@@ -71,9 +71,12 @@ class IP4Range:
         othr_ip_int = ip_to_int(ip)
         return othr_ip_int & self.mask == self.ip_int
 
+    def __contains__(self, ip):
+        return self.contains(ip)
+
 
 class IP4Packet:
-    def __init__(self, bytes):
+    def __init__(self, bytes=b'\0' * 64):
         self.bytes = bytearray(bytes)
 
     def new():
